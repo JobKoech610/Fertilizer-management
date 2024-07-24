@@ -1,4 +1,4 @@
-from . import app, db
+from . import app, db, swagger
 from flask import Flask, request, make_response, jsonify
 from .models import Farmer, NCPBStaff, Fertilizer, Inventory, Depot, Transaction, Order, Payment, Supplier 
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -8,8 +8,12 @@ from functools import wraps
 
 
 
+
 @app.route('/')
 def hello():
+    """
+    hello route
+    """
     return "Hello, World! This is the fertilizer management app"
 
 @app.route("/signup/farmer", methods=["POST"])
@@ -616,9 +620,14 @@ def payment_by_id(id):
         return response
 
     elif request.method == 'PATCH':
-        for attr in request.form:
-            setattr(payment, attr, request.form.get(attr))
-        db.session.add(payment)
+        payment = Payment.query.filter_by(id=id).first()
+        if not payment:
+            return make_response({"message":"No data provided to update"}, 400)
+        data = request.form or request.json
+        for attr in data:
+            if hasattr(payment, attr):
+                setattr(payment, attr, data.get(attr))
+       
         db.session.commit()
         payment_dict = payment.to_dict()
         return make_response(jsonify(payment_dict), 200)
@@ -638,7 +647,7 @@ def supplier():
             return make_response({"message": "Invalid JSON"}, 400)
 
     #check required fields
-    requered_fields = ["Name","phoneNumber","email","address","suppliedFertilizers","contractDetails"]     
+    required_fields = ["Name","phoneNumber","email","address","suppliedFertilizers","contractDetails"]     
     for field in required_fields:
             if field not in data:
                 return make_response({"message": f"Missing field: {field}"}, 400)
@@ -659,6 +668,9 @@ def supplier():
 @app.route('/supplier/<int:id>', methods=['GET', 'PATCH', 'DELETE'])
 def supplier_by_id(id):
     supplier = Supplier.query.filter_by(id=id).first()
+    if not supplier:
+        return make_response({"message": "Supplier not found"}, 404)
+
     if request.method == 'GET':
         supplier_dict = supplier.to_dict()
         return make_response(jsonify(supplier_dict), 200)
@@ -668,14 +680,20 @@ def supplier_by_id(id):
         db.session.commit()
         response_body = {
             "delete_successful": True,
-            "message": "Fertilizer deleted"
+            "message": "Supplier deleted"
         }
-        return make_response(jsonify(repsonse_body), 200)
-    elif request.method == 'PACTH':
-        for attr in request.form:
-            setattr(supplier, attr, request.form.get(attr))
-        db.session.add(supplier)
-        dn.session.commit()
+        return make_response(jsonify(response_body), 200)
+
+    elif request.method == 'PATCH':
+        data = request.form or request.json
+        if not data:
+            return make_response({"message": "No data provided to update"}, 400)
+        
+        for attr in data:
+            if hasattr(supplier, attr):
+                setattr(supplier, attr, data.get(attr))
+        
+        db.session.commit()
         supplier_dict = supplier.to_dict()
         return make_response(jsonify(supplier_dict), 200)
 
